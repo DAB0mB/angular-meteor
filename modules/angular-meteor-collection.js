@@ -12,6 +12,8 @@ var angularMeteorCollection = angular.module('angular-meteor.collection',
 angularMeteorCollection.factory('AngularMeteorCollection', [
   '$q', '$meteorSubscribe', '$meteorUtils', '$rootScope', '$timeout', 'diffArray',
   function ($q, $meteorSubscribe, $meteorUtils, $rootScope, $timeout, diffArray) {
+    var nativeMethods = ['find', 'findOne'];
+
     function AngularMeteorCollection (cursor, collection, diffArrayFunc) {
       var data = [];
       data._serverBackup = [];
@@ -22,6 +24,7 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
       else
         data.$$collection = $meteorUtils.getCollectionByName(cursor.collection.name);
 
+      extendMeteor(data);
       angular.extend(data, AngularMeteorCollection);
       return data;
     }
@@ -226,6 +229,14 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
         collectionUtils.updateCollection(self, oldItems, self.diffArrayFunc);
         self.setAutoBind();
       }, true);
+    };
+
+    var extendMeteor = function(data) { 
+      nativeMethods.forEach(function(method) {
+        data[method] = function() {
+          return this.$$collection[method].apply(this.$$collection, arguments);
+        };
+      });
     };
 
     return AngularMeteorCollection;

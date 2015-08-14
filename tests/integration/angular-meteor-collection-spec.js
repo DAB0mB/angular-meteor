@@ -409,4 +409,21 @@ describe('$meteorCollection service', function() {
     });
   });
 
+  describe('native methods', function() {
+    var methods = ['find', 'findOne'];
+
+    it('should be called with the provided arguments and return the result', function() {
+      methods.forEach(function(method) {
+        spyOn(Meteor.Collection.prototype, method).and.returnValue('result');
+      });
+
+      methods.forEach(function(method) {
+        var result = meteorArray[method](1, 2, 3);
+        expect(result).toEqual('result');
+        expect(Meteor.Collection.prototype[method]).toHaveBeenCalled();
+        expect(Meteor.Collection.prototype[method].calls.mostRecent().object).toEqual(MyCollection);
+        expect(Meteor.Collection.prototype[method].calls.mostRecent().args).toEqual([1, 2, 3]);
+      });
+    });
+  });
 });
