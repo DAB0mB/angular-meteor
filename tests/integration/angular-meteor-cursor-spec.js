@@ -1,4 +1,4 @@
-fdescribe('AngularMeteorCursor()', function() {
+describe('AngularMeteorCursor()', function() {
   var AngularMeteorCursor;
   var AngularMeteorObject;
   var Collection;
