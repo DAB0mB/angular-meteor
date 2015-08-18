@@ -41,6 +41,7 @@ Package.on_use(function (api) {
     'lib/diff-array.js',
     'lib/get-updates.js',
     // Module Files
+    'modules/angular-meteor-cursor.js',
     'modules/angular-meteor-subscribe.js',
     'modules/angular-meteor-stopper.js',
     'modules/angular-meteor-collection.js',
@@ -71,6 +72,7 @@ Package.onTest(function(api) {
 
   // spec files
   api.addFiles([
+    'tests/integration/angular-meteor-cursor-spec.js',
     'tests/integration/angular-meteor-session-spec.js',
     'tests/integration/angular-meteor-stopper-spec.js',
     'tests/integration/angular-meteor-camera-spec.js',
