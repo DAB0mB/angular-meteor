@@ -1,4 +1,4 @@
-describe('$meteorObject service', function () {
+fdescribe('$meteorObject service', function () {
   var $meteorObject,
       $rootScope,
       AngularMeteorCollection,
@@ -97,6 +97,27 @@ describe('$meteorObject service', function () {
         b: 2,
         c: 3
       });
+    });
+
+    it('should create a new document if object does not exist and id is defined', function() {
+      var id = 'test_2';
+      var meteorObject = $meteorObject(TestCollection, id, false);
+      meteorObject._id = id;
+      meteorObject.save();
+
+      var doc = TestCollection.findOne(id);
+      expect(doc._id).toEqual(id);
+    });
+
+    it('should create a new document if object does not exist and no id is defined', function() {
+      var meteorObject = $meteorObject(TestCollection, undefined, false);
+      meteorObject.save();
+
+      Tracker.flush();
+      var id = meteorObject._id;
+
+      var doc = TestCollection.findOne(id);
+      expect(doc._id).toEqual(id);
     });
   });
 
