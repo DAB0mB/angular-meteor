@@ -1,4 +1,4 @@
-fdescribe('$meteorObject service', function () {
+describe('$meteorObject service', function () {
   var $meteorObject,
       $rootScope,
       AngularMeteorCollection,

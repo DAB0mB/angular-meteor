@@ -42,5 +42,13 @@ customMatchers = {
         return result;
       }
     };
+  },
+
+  toBeMixedWith: function(mixin) {
+    return {
+      compare: function(actual, expected) {
+        return actual.__spy__ === expected;
+      }
+    };
   }
 };
