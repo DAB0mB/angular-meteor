@@ -29,6 +29,13 @@ describe('$meteorObject service', function () {
     meteorObject = $meteorObject(TestCollection, id, false);
   });
 
+  it('should ignore skip and limit options', function() {
+    var meteorObject = $meteorObject(TestCollection, id, false, { skip: 1, limit: 0 });
+    var actualDoc = meteorObject.getRawObject();
+    var expectedDoc = TestCollection.findOne(id);
+    expect(actualDoc).toEqual(expectedDoc);
+  });
+
   it('should delete the property when unset in the collection', function () {
     TestCollection.update(id, { $unset: { a: 1 } });
 

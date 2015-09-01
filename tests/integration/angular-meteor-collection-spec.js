@@ -1,5 +1,6 @@
 describe('$meteorCollection service', function() {
   var $meteorCollection,
+      AngularMeteorCursor,
       MyCollection,
       $rootScope,
       $timeout,
@@ -13,7 +14,8 @@ describe('$meteorCollection service', function() {
 
   // Inject angular stuff.
   beforeEach(angular.mock.module('angular-meteor'));
-  beforeEach(angular.mock.inject(function(_$meteorCollection_, _$rootScope_, _$timeout_) {
+  beforeEach(angular.mock.inject(function(_AngularMeteorCursor_, _$meteorCollection_, _$rootScope_, _$timeout_) {
+    AngularMeteorCursor = _AngularMeteorCursor_;
     $meteorCollection = _$meteorCollection_;
     $rootScope = _$rootScope_;
     $timeout = _$timeout_;
@@ -397,6 +399,52 @@ describe('$meteorCollection service', function() {
         Tracker.flush();
         expect(_.findWhere($scope.collection, { _id: id })).toDeepEqual(doc);
       });
+    });
+  });
+
+  describe('find()', function() {
+    it('should return an AngularMeteorCursor referenced to the collection', function() {
+      var cursor = meteorArray.find();
+      expect(cursor).toEqual(jasmine.any(AngularMeteorCursor));
+
+      var actualDocs = cursor.map(function(obj) {
+        return obj.getRawObject();
+      });
+
+      var expectedDocs = MyCollection.find().fetch();
+      expect(actualDocs).toEqual(expectedDocs);
+    });
+
+    it('should autobind cursor by default according to collection\'s configuration', function() {
+      var collection, cursor;
+
+      collection = $meteorCollection(MyCollection, true);
+      cursor = collection.find();
+      expect(cursor._autoSave).toEqual(true);
+      cursor = collection.find({}, {autoSave: false});
+      expect(cursor._autoSave).toEqual(false);
+
+      collection = $meteorCollection(MyCollection, false);
+      cursor = collection.find();
+      expect(cursor._autoSave).toEqual(false);
+      cursor = collection.find({}, {autoSave: true});
+      expect(cursor._autoSave).toEqual(true);
+    });
+  });
+
+  describe('findOne()', function() {
+    it('should find the first match', function() {
+      var actualDoc, expectedDoc;
+
+      var options = { skip: 1 };
+      actualDoc = meteorArray.findOne({}, options).getRawObject();
+      expectedDoc = MyCollection.findOne({}, options);
+      expect(actualDoc).toEqual(expectedDoc);
+
+      var selector = { a: 1 };
+      actualDoc = meteorArray.findOne(selector).getRawObject();
+      expectedDoc = MyCollection.findOne(selector);
+      expect(actualDoc).toEqual(expectedDoc);
     });
   });
 

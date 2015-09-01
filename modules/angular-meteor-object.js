@@ -13,6 +13,10 @@ angularMeteorObject.factory('AngularMeteorObject', [
     ];
 
     function AngularMeteorObject (collection, id, options){
+      // Omit options that may spoil document finding
+      // Common use in AngularMeteorObject.find()
+      options = _.omit(options, 'skip', 'limit');
+
       // Make data not be an object so we can extend it to preserve
       // Collection Helpers and the like
       var data = new function SubObject() {};

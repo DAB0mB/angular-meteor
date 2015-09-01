@@ -146,7 +146,7 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
     };
 
     AngularMeteorCollection.find = function(selector, options) {
-      _.defaults({}, options, {
+      options = _.defaults({}, options, {
         autoSave: this._autoClientSave
       });
 
