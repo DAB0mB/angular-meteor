@@ -48,6 +48,7 @@ Package.on_use(function (api) {
     // Module Files
     'modules/angular-meteor-subscribe.js',
     'modules/angular-meteor-stopper.js',
+    'modules/angular-meteor-cursor.js',
     'modules/angular-meteor-collection.js',
     'modules/angular-meteor-object.js',
     'modules/angular-meteor-user.js',
@@ -69,6 +70,7 @@ Package.onTest(function(api) {
 
   // auxiliary
   api.addFiles([
+    'tests/integration/auxiliary/helpers.js',
     'tests/integration/auxiliary/matchers.js',
     'tests/integration/auxiliary/test_data.js'
   ]);
@@ -78,6 +80,7 @@ Package.onTest(function(api) {
     'tests/integration/angular-meteor-methods-spec.js',
     'tests/integration/angular-meteor-session-spec.js',
     'tests/integration/angular-meteor-stopper-spec.js',
+    'tests/integration/angular-meteor-cursor-spec.js',
     'tests/integration/angular-meteor-camera-spec.js',
     'tests/integration/angular-meteor-diff-array-spec.js',
     'tests/integration/angular-meteor-get-updates-spec.js',

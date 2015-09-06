@@ -42,5 +42,15 @@ customMatchers = {
         return result;
       }
     };
+  },
+
+  toHaveBeenMixedWith: function(util, customEqualityTesters) {
+    return {
+      compare: function(actual, expected) {
+        var result = {};
+        result.pass = actual.__mixin__ === expected.__mixin__;
+        return result;
+      }
+    };
   }
 };

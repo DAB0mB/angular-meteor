@@ -1,15 +1,15 @@
 'use strict';
 
 var angularMeteorCollection = angular.module('angular-meteor.collection',
-  ['angular-meteor.stopper', 'angular-meteor.subscribe', 'angular-meteor.utils', 'diffArray']);
+  ['angular-meteor.stopper', 'angular-meteor.subscribe', 'angular-meteor.cursor', 'angular-meteor.utils', 'diffArray']);
 
 // The reason angular meteor collection is a factory function and not something
 // that inherit from array comes from here:
 // http://perfectionkills.com/how-ecmascript-5-still-does-not-allow-to-subclass-an-array/
 // We went with the direct extensions approach.
 angularMeteorCollection.factory('AngularMeteorCollection', [
-  '$q', '$meteorSubscribe', '$meteorUtils', '$rootScope', '$timeout', 'diffArray',
-  function($q, $meteorSubscribe, $meteorUtils, $rootScope, $timeout, diffArray) {
+  '$q', '$meteorSubscribe', '$meteorUtils', '$meteorCursor', '$rootScope', '$timeout', 'diffArray',
+  function($q, $meteorSubscribe, $meteorUtils, $meteorCursor, $rootScope, $timeout, diffArray) {
     function AngularMeteorCollection(curDefFunc, collection, diffArrayFunc, autoClientSave) {
       var data = [];
       // Server backup data to evaluate what changes come from client
@@ -17,6 +17,8 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
       data._serverBackup = [];
       // Array differ function.
       data._diffArrayFunc = diffArrayFunc;
+      // Auto client save.
+      data._autoClientSave = autoClientSave;
       // Handler of the cursor observer.
       data._hObserve = null;
       // On new cursor autorun handler
@@ -34,12 +36,12 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
       }
 
       angular.extend(data, AngularMeteorCollection);
-      data._startCurAutorun(curDefFunc, autoClientSave);
+      data._startCurAutorun(curDefFunc);
 
       return data;
     }
 
-    AngularMeteorCollection._startCurAutorun = function(curDefFunc, autoClientSave) {
+    AngularMeteorCollection._startCurAutorun = function(curDefFunc) {
       var self = this;
       self._hNewCurAutorun = Tracker.autorun(function() {
         // When the reactive func gets recomputated we need to stop any previous
@@ -47,10 +49,10 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
         Tracker.onInvalidate(function() {
           self._stopCursor();
         });
-        if (autoClientSave) {
+        if (self._autoClientSave) {
           self._setAutoClientSave();
         }
-        self._updateCursor(curDefFunc(), autoClientSave);
+        self._updateCursor(curDefFunc());
       });
     };
 
@@ -143,7 +145,23 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
       return deferred.promise;
     };
 
-    AngularMeteorCollection._updateCursor = function(cursor, autoClientSave) {
+    AngularMeteorCollection.find = function(selector, options) {
+      _.defaults({}, options, {
+        autoSave: this._autoClientSave
+      });
+
+      return $meteorCursor(this.$$collection, selector, options);
+    };
+
+    AngularMeteorCollection.findOne = function(selector, options) {
+      options = _.extend({}, options, {
+        limit: 1
+      });
+
+      return this.find(selector, options).fetch()[0];
+    };
+
+    AngularMeteorCollection._updateCursor = function(cursor) {
       var self = this;
 
       // XXX - consider adding an option for a non-orderd result
@@ -177,7 +195,7 @@ angularMeteorCollection.factory('AngularMeteorCollection', [
             self._diffArrayFunc);
           self._saveChanges(changes);
           // After, continues following client updates.
-          if (autoClientSave) {
+          if (self._autoClientSave) {
             self._setAutoClientSave();
           }
         }, 0);

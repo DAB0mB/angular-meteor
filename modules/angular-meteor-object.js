@@ -3,8 +3,8 @@
 var angularMeteorObject = angular.module('angular-meteor.object', ['angular-meteor.utils', 'angular-meteor.subscribe', 'angular-meteor.collection', 'getUpdates', 'diffArray']);
 
 angularMeteorObject.factory('AngularMeteorObject', [
-  '$q', '$meteorSubscribe', '$meteorCollection', '$meteorUtils', 'diffArray', 'getUpdates',
-  function($q, $meteorSubscribe, $meteorCollection, $meteorUtils, diffArray, getUpdates) {
+  '$q', '$meteorSubscribe', '$meteorUtils', 'diffArray', 'getUpdates',
+  function($q, $meteorSubscribe, $meteorUtils, diffArray, getUpdates) {
     // A list of internals properties to not watch for, nor pass to the Document on update and etc.
     AngularMeteorObject.$$internalProps = [
       '$$collection', '$$options', '$$id', '$$hashkey', '$$internalProps', '$$scope',
