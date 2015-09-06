@@ -1,0 +1,268 @@
+<template name="api.AngularMeteorCursor">
+<div>
+
+<a href="https://github.com/Urigo/angular-meteor/edit/master/.docs/angular-meteor/client/content/api/api.AngularMeteorCursor.html"
+   class="btn btn-default btn-lg improve-button">
+  <i class="glyphicon glyphicon-edit">&nbsp;</i>Improve this doc
+</a>
+
+<do-nothing>
+{{#markdown}}
+
+# AngularMeteorCursor
+
+Wraps [Mongo.Cursor](http://docs.meteor.com/#/full/cursors) and returns instances of [AngularMeteorObject](/api/AngularMeteorObject) instead of raw documents.
+
+Using AngularMeteorCursor directly is **not** recommended, instead you should use [AngularMeteorCollection#find](/api/AngularMeteorCollection) to create one. But if so, a more convenient way of using it would be the [$meteorCursor](/api/AngularMeteorCursor) service, which creates a new instance without actually calling the `new` keyword.
+
+#### Parameters
+
+<table class="variables-matrix input-arguments">
+<thead>
+<tr>
+  <th>Param</th>
+  <th>Type</th>
+  <th>Details</th>
+  <th>Required</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>collection</td>
+  <td>
+    <div class="label type-hint type-hint-object">Meteor Collection</div>
+  </td>
+  <td>
+    <p>The collection containing the wanted documents.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">Yes</div>
+  </td>
+</tr>
+
+<tr>
+  <td>selector</td>
+  <td>
+    <div class="label type-hint type-hint-object">Mongo Selector</div>/
+    <div class="label type-hint type-hint-object">Object ID</div>/
+    <div class="label type-hint type-hint-string">string</div>
+  </td>
+  <td>
+    <p>A query describing the documents to find.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+
+<tr>
+  <td>options</td>
+  <td>
+    <div class="label type-hint type-hint-object">object</div>
+  </td>
+  <td>
+    <p>Options specifying the retrieved documents' projection, similiar to <a href="http://docs.meteor.com/#/full/find">Meteor's</a>, only difference is that you can also specify an <code>autoSave</code> option (Boolean), which will use auto save on the retrived objects, and will be used by default.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+</tbody>
+</table>
+<br>
+
+## Methods
+<br>
+
+<h3><p><code><span class="pln">fetch();</span></code></p></h3>
+<p>Fetches the matching documents projected by the specified options.</p>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-array">array</div></td>
+  <td>
+    <p>Returns an array of <a href="/api/AngularMeteorObject">AngularMeteorObjects</a>.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+$scope.getEvilMinons = function(){
+  $scope.minions.find({ type: 'evil' }).fetch();
+};
+```
+
+---
+
+<h3><p><code><span class="pln">count();</span></code></p></h3>
+<p>Counts the matching documents.</p>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-number">number</div></td>
+  <td>
+    <p>Returns the number of the matching documents.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+var lettersNum = $scope.alphabet.find().count();
+console.log('there are ' + lettersNum + 'letters in the alphabet');
+```
+
+---
+
+<h3><p><code><span class="pln">observe( callbacks: );</span></code></p></h3>
+<p>Watch a query. Receive callbacks as the result set changes.</p>
+
+#### Parameters
+
+<table class="variables-matrix input-arguments">
+<thead>
+<tr>
+  <th>Param</th>
+  <th>Type</th>
+  <th>Details</th>
+  <th>Required</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>collection</td>
+  <td>
+    <div class="label type-hint type-hint-array">array</div>
+  </td>
+  <td>
+    <p>Functions to call to deliver the result set as it changes. Similiar to <a href="http://docs.meteor.com/#/full/observe">Meteor's</a>, only difference is that the current documents will be wrapped by <a href="/api/AngularMeteorObject">AngularMeteorObject</a>.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">Yes</div>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-object">object</div></td>
+  <td>
+    <p>Returns a live query handle. See <a href="http://docs.meteor.com/#/full/observe">reference</a>.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+$scope.mag.find().observe({
+  removed: function(bullet) {
+    bullet.fired = true;
+    bullet.save();
+    $scope.refill(); 
+  }
+});
+```
+
+---
+
+<h3><p><code><span class="pln">observeChanges( callbacks: );</span></code></p></h3>
+<p>Watch a query. Receive callbacks as the result set changes. Only the differences between the old and new documents are passed to the callbacks.</p>
+
+#### Parameters
+
+<table class="variables-matrix input-arguments">
+<thead>
+<tr>
+  <th>Param</th>
+  <th>Type</th>
+  <th>Details</th>
+  <th>Required</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>collection</td>
+  <td>
+    <div class="label type-hint type-hint-array">array</div>
+  </td>
+  <td>
+    <p>Functions to call to deliver the result set as it changes. Similiar to <a href="http://docs.meteor.com/#/full/observeChanges">Meteor's</a>.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">Yes</div>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-object">object</div></td>
+  <td>
+    <p>Returns a live query handle. See <a href="http://docs.meteor.com/#/full/observeChanges">reference</a>.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+var captainsNum = 0;
+
+var handle = $scope.blackPearl.find({ captain: true }).observeChanges({
+  added: function (id, krewMember) {
+    captainsNum++;
+    console.log('Ahoy ' + krewMember.name + ', we are now ' + captainsNum + ' captains on the ship!');
+  },
+
+  removed: function () {
+    captainsNum--;
+    console.log('Arrrr! RIP ' + krewMember.name + ', we are now ' + captainsNum + ' captains on the ship!');
+  }
+});
+```
+
+---
+
+In addition, the following collection methods will be provided:
+[each](http://underscorejs.org/#each),
+[map](http://underscorejs.org/#map),
+[reduce](http://underscorejs.org/#reduce),
+[reduceRight](http://underscorejs.org/#reduceRight),
+[find](http://underscorejs.org/#find),
+[where](http://underscorejs.org/#where),
+[findWhere](http://underscorejs.org/#findWhere),
+[filter](http://underscorejs.org/#filter),
+[reject](http://underscorejs.org/#reject).
+Each one will register dependencies on the matching documents once called from a reactive compution.
+
+
+{{/markdown}}
+</do-nothing>
+
+</div>
+</template>

@@ -121,6 +121,14 @@ API_REFERENCE = {
           title: "File Extensions",
           seoTitle: "File Extensions",
           mdContent: "api.ngFileExtension"
+        },
+        {
+          id: "15",
+          route: "api.AngularMeteorCursor",
+          path: "/api/AngularMeteorCursor",
+          title: "AngularMeteorCursor",
+          seoTitle: "AngularMeteorCursor",
+          mdContent: "api.AngularMeteorCursor"
         }
       ]
     }

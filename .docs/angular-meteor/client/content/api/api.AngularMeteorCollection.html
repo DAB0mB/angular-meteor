@@ -109,6 +109,153 @@ See [$meteor.collection](/api/meteorCollection)
 </tr>
 </tbody></table>
 <br>
+
+
+<h3><p><code><span class="pln">find( selector:, options: );</span></code></p></h3>
+<p>Find the documents that match the selector.</p>
+
+<h4>Parameters</h4>
+
+<table class="variables-matrix input-arguments">
+<thead>
+<tr>
+  <th>Param</th>
+  <th>Type</th>
+  <th>Details</th>
+  <th>Required</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>selector</td>
+  <td>
+    <div class="label type-hint type-hint-object">Mongo Selector</div>/
+    <div class="label type-hint type-hint-object">Object ID</div>/
+    <div class="label type-hint type-hint-string">string</div>
+  </td>
+  <td>
+    <p>A query describing the documents to find.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+
+<tr>
+  <td>options</td>
+  <td>
+    <div class="label type-hint type-hint-object">object</div>
+  </td>
+  <td>
+    <p>Options specifying the retrieved documents' projection, similiar to <a href="http://docs.meteor.com/#/full/find">Meteor's</a>, only difference is that you can also specify an <code>autoSave</code> option (Boolean), which will use auto save on the retrived objects, and will default to the collection's autoSave option value.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-object">object</div></td>
+  <td>
+    <p>Returns an <a href="/api/AngularMeteorCursor">AngularMeteorCursor</a>.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+$scope.dropMeteor = function() {
+  $scope.animals.find({ type: 'dinosaur' }).each(function(dinosaur) {
+    dinosaur.remove();
+  });
+
+  console.log('All dinosaurs have been extinct');
+};
+```
+<br>
+
+
+<h3><p><code><span class="pln">findOne( selector:, options: );</span></code></p></h3>
+<p>Finds the first document that matches the selector, as ordered by sort and skip options.</p>
+
+<h4>Parameters</h4>
+
+<table class="variables-matrix input-arguments">
+<thead>
+<tr>
+  <th>Param</th>
+  <th>Type</th>
+  <th>Details</th>
+  <th>Required</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+  <td>selector</td>
+  <td>
+    <div class="label type-hint type-hint-object">Mongo Selector</div>/
+    <div class="label type-hint type-hint-object">Object ID</div>/
+    <div class="label type-hint type-hint-string">string</div>
+  </td>
+  <td>
+    <p>A query describing the document to find.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+
+<tr>
+  <td>options</td>
+  <td>
+    <div class="label type-hint type-hint-object">object</div>
+  </td>
+  <td>
+    <p>Options specifying the retrieved documents' projection, similiar to <a href="http://docs.meteor.com/#/full/findOne">Meteor's</a>, only difference is that you can also specify an <code>autoSave</code> option (Boolean), which will use auto save on the retrived object, and will default to the collection's autoSave option value.</p>
+  </td>
+  <td>
+    <div class="label type-hint type-hint-object">No</div>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Returns
+
+<table class="variables-matrix return-arguments">
+<tbody>
+<tr>
+  <td><div class="label type-hint type-hint-object">object</div></td>
+  <td>
+    <p>Returns an <a href="/api/AngularMeteorObject">AngularMeteorObject</a>.</p>
+  </td>
+</tr>
+</tbody>
+</table>
+
+### Example
+
+```js
+var frankSinatra = $scope.jazzStars.findOne({ firstname: 'frank', surname: 'sinatra' });
+frankSinatra.moto = 'Do it your way';
+
+frankSinatra.save().then(function() {
+  console.log('He did it his way');
+});
+```
+<br>
+
+
 <h3><p><code><span class="pln">subscribe( :subscriptionName );</span></code></p></h3>
 <br>
 A shorter ('syntactic sugar') function for <a href="/api/subscribe">$meteor.subscribe</a>.
