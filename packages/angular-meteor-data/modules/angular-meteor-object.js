@@ -1,187 +1,90 @@
 'use strict';
 
-var angularMeteorObject = angular.module('angular-meteor.object',
-  ['angular-meteor.utils', 'angular-meteor.subscribe', 'angular-meteor.collection', 'getUpdates', 'diffArray']);
+angular.module('angular-meteor.object',
+  ['angular-meteor.entity', 'angular-meteor.utils', 'getUpdates'])
 
-angularMeteorObject.factory('AngularMeteorObject', [
-  '$q', '$meteorSubscribe', '$meteorUtils', 'diffArray', 'getUpdates', 'AngularMeteorCollection',
-  function($q, $meteorSubscribe, $meteorUtils, diffArray, getUpdates, AngularMeteorCollection) {
+.factory('$meteorObject', [
+  '$q', '$meteorEntity', '$meteorUtils', 'getUpdates',
+  function($q, $meteorEntity, $meteorUtils, getUpdates) {
     // A list of internals properties to not watch for, nor pass to the Document on update and etc.
-    AngularMeteorObject.$$internalProps = [
-      '$$collection', '$$options', '$$id', '$$hashkey', '$$internalProps', '$$scope',
-      'bind', 'save', 'reset', 'subscribe', 'stop', 'autorunComputation', 'unregisterAutoBind', 'unregisterAutoDestroy', 'getRawObject',
-      '_auto', '_setAutos', '_eventEmitter', '_serverBackup', '_updateDiff', '_updateParallel'
+    $meteorObject._internalProps = [
+      '$$hashkey', '_collection', '_eventEmitter', '_id', '_internalProps', '_keys', '_modify', '_options',
+      '_scope', '_track', '_tracker', '_updateDiff', '_updateParallel', 'bind', 'getRawObject', 'insert',
+      'remove', 'reset', 'save', 'stop', 'update'
     ];
 
-    function AngularMeteorObject (collection, id, options){
-      // Make data not be an object so we can extend it to preserve
-      // Collection Helpers and the like
-      var data = new function SubObject() {};
-      var doc = collection.findOne(id, options);
-      var collectionExtension = _.pick(AngularMeteorCollection, '_updateParallel');
-      _.extend(data, doc);
-      _.extend(data, AngularMeteorObject);
-      _.extend(data, collectionExtension);
+    function $meteorObject (collection, id, options){
+      id = id || new Mongo.ObjectID();
+      // Omit options that may spoil document finding
+      // Common use in $meteorCollection.find()
+      options = _.omit(options, 'skip', 'limit');
 
-      data._serverBackup = doc || {};
-      data.$$collection = collection;
-      data.$$options = options;
-      data.$$id = id || new Mongo.ObjectID();
-
-      return data;
-    }
-
-    AngularMeteorObject.getRawObject = function () {
-      return angular.copy(_.omit(this, this.$$internalProps));
-    };
-
-    AngularMeteorObject.subscribe = function () {
-      $meteorSubscribe.subscribe.apply(this, arguments);
-      return this;
-    };
-
-    AngularMeteorObject.save = function(custom) {
-      var deferred = $q.defer();
-      var collection = this.$$collection;
-      var createFulfill = _.partial($meteorUtils.fulfill, deferred, null);
-      var oldDoc = collection.findOne(this.$$id);
-      var mods;
-
-      // update
-      if (oldDoc) {
-        if (custom)
-          mods = { $set: custom };
-        else {
-          mods = getUpdates(oldDoc, this.getRawObject());
-          // If there are no updates, there is nothing to do here, returning
-          if (_.isEmpty(mods)) {
-            return $q.when({ action: 'updated' });
-          }
-        }
-
-        // NOTE: do not use #upsert() method, since it does not exist in some collections
-        this._updateDiff(mods, createFulfill({ action: 'updated' }));
-      }
-      // insert
-      else {
-        if (custom)
-          mods = _.clone(custom);
-        else
-          mods = this.getRawObject();
-
-        mods._id = this.$$id;
-        collection.insert(mods, createFulfill({ action: 'inserted' }));
-      }
-
-      return deferred.promise;
-    };
-
-    AngularMeteorObject._updateDiff = function(update, callback) {
-      var selector = this.$$id;
-      AngularMeteorCollection._updateDiff.call(this, selector, update, callback);
-    };
-
-    AngularMeteorObject.reset = function(keepClientProps) {
-      var self = this;
-      var options = this.$$options;
-      var id = this.$$id;
-      var doc = this.$$collection.findOne(id, options);
-
-      if (doc) {
-        // extend SubObject
-        var docKeys = _.keys(doc);
-        var docExtension = _.pick(doc, docKeys);
-        var clientProps;
-
-        _.extend(Object.getPrototypeOf(self), Object.getPrototypeOf(doc));
-        _.extend(self, docExtension);
-        _.extend(self._serverBackup, docExtension);
-
-        if (keepClientProps) {
-          clientProps = _.intersection(_.keys(self), _.keys(self._serverBackup));
-        } else {
-          clientProps = _.keys(self);
-        }
-
-        var serverProps = _.keys(doc);
-        var removedKeys = _.difference(clientProps, serverProps, self.$$internalProps);
-
-        removedKeys.forEach(function (prop) {
-          delete self[prop];
-          delete self._serverBackup[prop];
-        });
-      }
-
-      else {
-        _.keys(this.getRawObject()).forEach(function(prop) {
-          delete self[prop];
-        });
-
-        self._serverBackup = {};
-      }
-    };
-
-    AngularMeteorObject.stop = function () {
-      if (this.unregisterAutoDestroy)
-        this.unregisterAutoDestroy();
-
-      if (this.unregisterAutoBind)
-        this.unregisterAutoBind();
-
-      if (this.autorunComputation && this.autorunComputation.stop)
-        this.autorunComputation.stop();
-    };
-
-    return AngularMeteorObject;
-}]);
-
-
-angularMeteorObject.factory('$meteorObject', [
-  '$rootScope', '$meteorUtils', 'getUpdates', 'AngularMeteorObject',
-  function($rootScope, $meteorUtils, getUpdates, AngularMeteorObject) {
-    function $meteorObject(collection, id, auto, options) {
-      // Validate parameters
-      if (!collection) {
-        throw new TypeError("The first argument of $meteorObject is undefined.");
-      }
-
-      if (!angular.isFunction(collection.findOne)) {
-        throw new TypeError("The first argument of $meteorObject must be a function or a have a findOne function property.");
-      }
-
-      var data = new AngularMeteorObject(collection, id, options);
-      // Making auto default true - http://stackoverflow.com/a/15464208/1426570
-      data._auto = auto !== false;
+      var helpers = collection._helpers;
+      // Make collection helpers accessible
+      var data = _.isFunction(helpers) ? Object.create(helpers.prototype) : {};
       _.extend(data, $meteorObject);
-      data._setAutos();
+
+      data._collection = collection;
+      data._options = options;
+      data._id = id;
+      data._track();
+
       return data;
     }
 
-    $meteorObject._setAutos = function() {
+    $meteorObject.getRawObject = function () {
+      var raw = _.pick(this._keys());
+      return angular.copy(raw);
+    };
+
+    $meteorObject.save = function() {
+      var doc = this.getRawObject();
+      var oldDoc = this._collection.findOne(this._id);
+      // insert object if not exist
+      if (!oldDoc) return this.insert(doc);
+
+      var mods = getUpdates(oldDoc, doc);
+      // do nothing if no changes were made
+      if (_.isEmpty(mods)) return $q.when();
+
+      // update object if changes were made
+      return this._updateDiff(mods);
+    };
+
+    $meteorObject.reset = function() {
+      var self = this;
+      var doc = self._collection.findOne(self._id, self._options);
+
+      self._keys().forEach(function(k) {
+        delete self[k];
+      });
+
+      _.extend(self, doc);
+    };
+
+    $meteorObject.stop = function () {
+      if (this._tracker) this._tracker.stop();
+    };
+
+    $meteorObject._track = function() {
       var self = this;
 
-      this.autorunComputation = $meteorUtils.autorun($rootScope, function() {
-        self.reset(true);
-      });
-
-      // Deep watches the model and performs autobind
-      this.unregisterAutoBind = this._auto && $rootScope.$watch(function(){
-        return self.getRawObject();
-      }, function (item, oldItem) {
-        if (item !== oldItem) self.save();
-      }, true);
-
-      this.unregisterAutoDestroy = $rootScope.$on('$destroy', function() {
-        if (self && self.stop) self.pop();
+      this._tracker = Tracker.autorun(function() {
+        self.reset();
       });
     };
+
+    $meteorObject._keys = function() {
+      var rawKeys = _.keys(this);
+      return _.difference(rawKeys, this._internalProps);
+    };
+
+    _.each($meteorEntity, function(v, k) {
+      $meteorObject[k] = function() {
+        var args = [].concat(this._id, _.toArray(arguments));
+        return v.apply(this, args);
+      };
+    });
 
     return $meteorObject;
-}]);
-
-angularMeteorObject.run([
-  '$rootScope', '$meteorObject', '$meteorStopper',
-  function ($rootScope, $meteorObject, $meteorStopper) {
-    var scopeProto = Object.getPrototypeOf($rootScope);
-    scopeProto.$meteorObject = $meteorStopper($meteorObject);
 }]);

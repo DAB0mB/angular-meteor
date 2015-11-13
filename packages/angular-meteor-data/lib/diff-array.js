@@ -1,12 +1,16 @@
 'use strict';
 
-var module = angular.module('diffArray', ['getUpdates']);
+angular.module('diffArray', 
+  ['angular-meteor.utils', 'getUpdates'])
 
-module.factory('diffArray', ['getUpdates',
-  function(getUpdates) {
-    var LocalCollection = Package['minimongo'].LocalCollection;
-    var idStringify = LocalCollection._idStringify || Package['mongo-id'].MongoID.idStringify;
-    var idParse = LocalCollection._idParse || Package['mongo-id'].MongoID.idParse;
+.factory('diffArray', [
+  '$meteorUtils', 'getUpdates',
+  function($meteorUtils, getUpdates) {
+    var DiffSequence = Package['diff-sequence'].DiffSequence;
+    var Minimongo = Package['minimongo'].Minimongo;
+    var MongoID = Package['mongo-id'].MongoID;
+    var idStringify = Minimongo.LocalCollection._idStringify || MongoID.idStringify;
+    var idParse = Minimongo.LocalCollection._idParse || MongoID.idParse;
 
     // Calculates the differences between `lastSeqArray` and
     // `seqArray` and calls appropriate functions from `callbacks`.
@@ -14,11 +18,9 @@ module.factory('diffArray', ['getUpdates',
     // XXX Should be replaced with the original diffArray function here:
     // https://github.com/meteor/meteor/blob/devel/packages/observe-sequence/observe_sequence.js#L152
     // When it will become nested as well, tracking here: https://github.com/meteor/meteor/issues/3764
-    function diffArray(lastSeqArray, seqArray, callbacks, preventNestedDiff) {
-      preventNestedDiff = !!preventNestedDiff;
-
-      var diffFn = Package.minimongo.LocalCollection._diffQueryOrderedChanges ||
-        Package['diff-sequence'].DiffSequence.diffQueryOrderedChanges;
+    function diffArray(lastSeqArray, seqArray, callbacks, level) {
+      var diffFn = Minimongo.LocalCollection._diffQueryOrderedChanges ||
+        DiffSequence.diffQueryOrderedChanges;
 
       var oldObjIds = [];
       var newObjIds = [];
@@ -53,8 +55,7 @@ module.factory('diffArray', ['getUpdates',
           lengthCur++;
           posCur[idStringify(id)] = position;
 
-          callbacks.addedAt(
-            id,
+          callbacks.addedAt(id,
             seqArray[posNew[idStringify(id)]],
             position,
             before
@@ -74,14 +75,14 @@ module.factory('diffArray', ['getUpdates',
 
           posCur[idStringify(id)] = position;
 
-          callbacks.movedTo(
-            id,
+          callbacks.movedTo(id,
             seqArray[posNew[idStringify(id)]],
             prevPosition,
             position,
             before
           );
         },
+
         removed: function (id) {
           var prevPosition = posCur[idStringify(id)];
 
@@ -92,8 +93,7 @@ module.factory('diffArray', ['getUpdates',
           delete posCur[idStringify(id)];
           lengthCur--;
 
-          callbacks.removedAt(
-            id,
+          callbacks.removedAt(id,
             lastSeqArray[posOld[idStringify(id)]],
             prevPosition
           );
@@ -106,7 +106,7 @@ module.factory('diffArray', ['getUpdates',
         var id = idParse(idString);
         var newItem = seqArray[pos] || {};
         var oldItem = lastSeqArray[posOld[idString]];
-        var updates = getUpdates(oldItem, newItem, preventNestedDiff);
+        var updates = getUpdates(oldItem, newItem, level);
 
         if (!_.isEmpty(updates))
           callbacks.changedAt(id, updates, pos, oldItem);
@@ -121,7 +121,7 @@ module.factory('diffArray', ['getUpdates',
       var setDiff = getUpdates(oldItem, newItem).$set;
 
       _.each(setDiff, function(v, deepKey) {
-        setDeep(oldItem, deepKey, v);
+        $meteorUtils.setDeep(oldItem, deepKey, v);
       });
     };
 
@@ -129,7 +129,7 @@ module.factory('diffArray', ['getUpdates',
       var unsetDiff = getUpdates(oldItem, newItem).$unset;
 
       _.each(unsetDiff, function(v, deepKey) {
-        unsetDeep(oldItem, deepKey);
+        $meteorUtils.unsetDeep(oldItem, deepKey);
       });
     };
 
@@ -156,58 +156,6 @@ module.factory('diffArray', ['getUpdates',
       });
 
       return changes;
-    };
-
-    var setDeep = function(obj, deepKey, v) {
-      var split = deepKey.split('.');
-      var initialKeys = _.initial(split);
-      var lastKey = _.last(split);
-
-      initialKeys.reduce(function(subObj, k, i) {
-        var nextKey = split[i + 1];
-
-        if (isNumStr(nextKey)) {
-          if (subObj[k] == null) subObj[k] = [];
-          if (subObj[k].length == parseInt(nextKey)) subObj[k].push(null);
-        }
-
-        else if (subObj[k] == null || !isHash(subObj[k])) {
-          subObj[k] = {};
-        }
-
-        return subObj[k];
-      }, obj);
-
-      var deepObj = getDeep(obj, initialKeys);
-      deepObj[lastKey] = v;
-      return v;
-    };
-
-    var unsetDeep = function(obj, deepKey) {
-      var split = deepKey.split('.');
-      var initialKeys = _.initial(split);
-      var lastKey = _.last(split);
-      var deepObj = getDeep(obj, initialKeys);
-
-      if (_.isArray(deepObj) && isNumStr(lastKey))
-        return !!deepObj.splice(lastKey, 1);
-      else
-        return delete deepObj[lastKey];
-    };
-
-    var getDeep = function(obj, keys) {
-      return keys.reduce(function(subObj, k) {
-        return subObj[k];
-      }, obj);
-    };
-
-    var isHash = function(obj) {
-      return _.isObject(obj) &&
-             Object.getPrototypeOf(obj) === Object.prototype;
-    };
-
-    var isNumStr = function(str) {
-      return str.match(/^\d+$/);
     };
 
     return diffArray;

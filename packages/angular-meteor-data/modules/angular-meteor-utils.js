@@ -1,104 +1,145 @@
 'use strict';
 
-var angularMeteorUtils = angular.module('angular-meteor.utils', []);
+angular.module('angular-meteor.utils', [])
 
-angularMeteorUtils.service('$meteorUtils', [
+.service('$meteorUtils', [
   '$q', '$timeout',
   function ($q, $timeout) {
-    var self = this;
+    var $meteorUtils = this;
+    var helpers = {};
 
-    this.autorun = function(scope, fn) {
+    $meteorUtils.call = function() {
+      var deferred = $q.defer();
+      var callback = $meteorUtils.callbackPromise(deferred);
+      var args = _.toArray(arguments).concat(callback);
+      Meteor.call.apply(Meteor, args);
+      return deferred.promise;
+    };
+
+    $meteorUtils.autorun = function(fn) {
       // wrapping around Deps.autorun
-      var comp = Tracker.autorun(function(c) {
+      var tracker = Tracker.autorun(function(c) {
         fn(c);
         // this is run immediately for the first call
         // but after that, we need to $apply to start Angular digest
-        if (!c.firstRun) $timeout(angular.noop, 0);
-      });
-
-      // stop autorun when scope is destroyed
-      scope.$on('$destroy', function() {
-        comp.stop();
+        if (!c.firstRun) $timeout(angular.noop);
       });
 
       // return autorun object so that it can be stopped manually
-      return comp;
+      return tracker;
     };
 
-    // Borrowed from angularFire
-    // https://github.com/firebase/angularfire/blob/master/src/utils.js#L445-L454
-    this.stripDollarPrefixedKeys = function (data) {
-      if (!_.isObject(data) ||
-          data instanceof Date ||
-          data instanceof File ||
-          EJSON.toJSONValue(data).$type === 'oid' ||
-          (typeof FS === 'object' && data instanceof FS.File))
-        return data;
+    $meteorUtils.subscribe = function(name) {
+      var subscribeArgs = [].slice.call(arguments, 1);
+      var readyDeffered = $q.defer();
+      var stopDeffered = $q.defer();
 
-      var out = _.isArray(data) ? [] : {};
-
-      _.each(data, function(v,k) {
-        if(typeof k !== 'string' || k.charAt(0) !== '$')
-          out[k] = self.stripDollarPrefixedKeys(v);
-      });
-
-      return out;
-    };
-
-    // Returns a callback which fulfills promise
-    this.fulfill = function(deferred, boundError, boundResult) {
-      return function(err, result) {
-        if (err)
-          deferred.reject(boundError == null ? err : boundError);
-        else if (typeof boundResult == "function")
-          deferred.resolve(boundResult == null ? result : boundResult(result));
-        else
-          deferred.resolve(boundResult == null ? result : boundResult);
+      var callbacks = {
+        onReady: $meteorUtils.callbackPromise(readyDeffered),
+        onStop: $meteorUtils.callbackPromise(stopDeffered),
       };
+
+      var args = [].concat(name, subscribeArgs, callbacks);
+      var subscribe = Meteor.subscribe.apply(Meteor, args);
+      $meteorUtils.bindPromise(subscribe.ready, readyDeffered.promise);
+      $meteorUtils.bindPromise(subscribe.stop, stopDeffered.promise);
+      return subscribe;
     };
 
-    // creates a function which invokes method with the given arguments and returns a promise
-    this.promissor = function(obj, method) {
-      return function() {
-        var deferred = $q.defer();
-        var fulfill = self.fulfill(deferred);
-        var args = _.toArray(arguments).concat(fulfill);
-        obj[method].apply(obj, args);
-        return deferred.promise;
-      };
+    $meteorUtils.promise = function(digest) {
+      var deferred = $q.deferred();
+      var promise = deferred.promise;
+      helpers.finallyDigest(promise, digest);
+      return promise;
     };
 
     // creates a $q.all() promise and call digestion loop on fulfillment
-    this.promiseAll = function(promises) {
+    $meteorUtils.promiseAll = function(promises, digest) {
       var allPromise = $q.all(promises);
-
-      allPromise.finally(function() {
-        // calls digestion loop with no conflicts
-        $timeout(angular.noop);
-      });
-
+      helpers.finallyDigest(allPromise, digest);
       return allPromise;
     };
 
-    this.getCollectionByName = function(string){
+    // Returns a callback which fulfills promise
+    $meteorUtils.callbackPromise = function(deferred, digest) {
+      var promise = deferred.promise;
+      helpers.finallyDigest(promise, digest);
+
+      return function(err, result) {
+        return err ? deferred.reject(err) : deferred.resolve(result);
+      };
+    };
+
+    $meteorUtils.bindPromise = function(obj, promise) {
+      var promiseMethods = ['then', 'catch', 'finally'];
+
+      promiseMethods.forEach(function(k) {
+        obj[k] = promise[k].bind(promise);
+      }); 
+    };
+
+    $meteorUtils.getCollectionByName = function(string){
       return Mongo.Collection.get(string);
     };
 
-    this.findIndexById = function(collection, doc) {
-      var foundDoc = _.find(collection, function(colDoc) {
-        // EJSON.equals used to compare Mongo.ObjectIDs and Strings.
-        return EJSON.equals(colDoc._id, doc._id);
-      });
+    $meteorUtils.setDeep = function(obj, deepKey, v) {
+      var split = deepKey.split('.');
+      var initialKeys = _.initial(split);
+      var lastKey = _.last(split);
 
-      return _.indexOf(collection, foundDoc);
+      initialKeys.reduce(function(subObj, k, i) {
+        var nextKey = split[i + 1];
+
+        if ($meteorUtils.isNumStr(nextKey)) {
+          if (subObj[k] == null) subObj[k] = [];
+          if (subObj[k].length == parseInt(nextKey)) subObj[k].push(null);
+        }
+
+        else if (subObj[k] == null || !$meteorUtils.isHash(subObj[k])) {
+          subObj[k] = {};
+        }
+
+        return subObj[k];
+      }, obj);
+
+      var deepObj = $meteorUtils.getDeep(obj, initialKeys);
+      deepObj[lastKey] = v;
+      return v;
     };
-  }
-]);
 
-angularMeteorUtils.run([
-  '$rootScope', '$meteorUtils',
-  function($rootScope, $meteorUtils) {
-    Object.getPrototypeOf($rootScope).$meteorAutorun = function(fn) {
-      return $meteorUtils.autorun(this, fn);
+    $meteorUtils.unsetDeep = function(obj, deepKey) {
+      var split = deepKey.split('.');
+      var initialKeys = _.initial(split);
+      var lastKey = _.last(split);
+      var deepObj = $meteorUtils.getDeep(obj, initialKeys);
+
+      if (_.isArray(deepObj) && $meteorUtils.isNumStr(lastKey))
+        return !!deepObj.splice(lastKey, 1);
+      else
+        return delete deepObj[lastKey];
+    };
+
+    $meteorUtils.getDeep = function(obj, keys) {
+      return keys.reduce(function(subObj, k) {
+        return subObj[k];
+      }, obj);
+    };
+
+    $meteorUtils.isHash = function(obj) {
+      return _.isObject(obj) &&
+        Object.getPrototypeOf(obj) === Object.prototype;
+    };
+
+    $meteorUtils.isNumStr = function(str) {
+      return str.match(/^\d+$/);
+    };
+
+    helpers.finallyDigest = function(promise, digest) {
+      digest = _.isBoolean(digest) ? digest : true;
+      if (!digest) return;
+
+      promise.finally(function() {
+        $timeout(angular.noop);
+      });
     };
 }]);
