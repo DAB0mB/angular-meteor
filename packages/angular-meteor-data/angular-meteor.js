@@ -12,11 +12,7 @@ angular.module('angular-meteor', [
 .service('$meteor', [
   '$meteorCursor', '$meteorCollection', '$meteorObject', '$meteorUtils',
   function($meteorCursor, $meteorCollection, $meteorObject, $meteorUtils) {
-    this.collection = $meteorCollection;
-    this.object = $meteorObject;
-    this.cursor = $meteorCursor;
-    this.utils = $meteorUtils;
-    _.extend(this, $meteorUtils);
+    
 }])
 
 .run([

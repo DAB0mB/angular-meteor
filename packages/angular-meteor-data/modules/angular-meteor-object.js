@@ -1,90 +1,67 @@
 'use strict';
 
-angular.module('angular-meteor.object',
-  ['angular-meteor.entity', 'angular-meteor.utils', 'getUpdates'])
+angular.module('angular-meteor.object', [])
 
-.factory('$meteorObject', [
-  '$q', '$meteorEntity', '$meteorUtils', 'getUpdates',
-  function($q, $meteorEntity, $meteorUtils, getUpdates) {
-    // A list of internals properties to not watch for, nor pass to the Document on update and etc.
-    $meteorObject._internalProps = [
-      '$$hashkey', '_collection', '_eventEmitter', '_id', '_internalProps', '_keys', '_modify', '_options',
-      '_scope', '_track', '_tracker', '_updateDiff', '_updateParallel', 'bind', 'getRawObject', 'insert',
-      'remove', 'reset', 'save', 'stop', 'update'
-    ];
+.factory('$meteorObject', function() {
+  // Blacklist of properties that should not be reseted
+  var internalProps = [
+    '$$hashkey', '_collection', '_eventEmitter', '_id', '_keys', '_options', '_track',
+    '_tracker', 'bind', 'reset', 'stop'
+  ];
 
-    function $meteorObject (collection, id, options){
-      id = id || new Mongo.ObjectID();
-      // Omit options that may spoil document finding
-      // Common use in $meteorCollection.find()
-      options = _.omit(options, 'skip', 'limit');
+  function $meteorObject (collection, selector, options){
+    var helpers = collection._helpers;
+    var obj = _.isFunction(helpers) ? Object.create(helpers.prototype) : {};
+    _.extend(obj, $meteorObject);
 
-      var helpers = collection._helpers;
-      // Make collection helpers accessible
-      var data = _.isFunction(helpers) ? Object.create(helpers.prototype) : {};
-      _.extend(data, $meteorObject);
+    // Omit options that may spoil document finding
+    // Common use in $meteorCollection.find()
+    obj._options = _.omit(options, 'skip', 'limit');
+    obj._collection = collection;
+    obj._id = obj._getId(selector);
 
-      data._collection = collection;
-      data._options = options;
-      data._id = id;
-      data._track();
+    obj.track();
+    return obj;
+  }
 
-      return data;
-    }
+  $meteorObject.track = function() {
+    var self = this;
 
-    $meteorObject.getRawObject = function () {
-      var raw = _.pick(this._keys());
-      return angular.copy(raw);
-    };
+    this._tracker = Tracker.autorun(function() {
+      self._reset();
+    });
+  };
 
-    $meteorObject.save = function() {
-      var doc = this.getRawObject();
-      var oldDoc = this._collection.findOne(this._id);
-      // insert object if not exist
-      if (!oldDoc) return this.insert(doc);
+  $meteorObject.stop = function () {
+    if (this._tracker) this._tracker.stop();
+  };
 
-      var mods = getUpdates(oldDoc, doc);
-      // do nothing if no changes were made
-      if (_.isEmpty(mods)) return $q.when();
+  $meteorObject._reset = function() {
+    var self = this;
+    var doc = self._collection.findOne(self._id, self._options);
 
-      // update object if changes were made
-      return this._updateDiff(mods);
-    };
-
-    $meteorObject.reset = function() {
-      var self = this;
-      var doc = self._collection.findOne(self._id, self._options);
-
-      self._keys().forEach(function(k) {
-        delete self[k];
-      });
-
-      _.extend(self, doc);
-    };
-
-    $meteorObject.stop = function () {
-      if (this._tracker) this._tracker.stop();
-    };
-
-    $meteorObject._track = function() {
-      var self = this;
-
-      this._tracker = Tracker.autorun(function() {
-        self.reset();
-      });
-    };
-
-    $meteorObject._keys = function() {
-      var rawKeys = _.keys(this);
-      return _.difference(rawKeys, this._internalProps);
-    };
-
-    _.each($meteorEntity, function(v, k) {
-      $meteorObject[k] = function() {
-        var args = [].concat(this._id, _.toArray(arguments));
-        return v.apply(this, args);
-      };
+    self._keys().forEach(function(k) {
+      delete self[k];
     });
 
-    return $meteorObject;
-}]);
+    _.extend(self, doc);
+  };
+
+  $meteorObject._keys = function() {
+    var rawKeys = _.keys(this);
+    return _.difference(rawKeys, internalProps);
+  };
+
+  $meteorObject.prototype._getId = function(selector) {
+    var options = _.extend({}, this._options, { 
+      fields: { _id: 1 },
+      reactive: false,
+      transform: null
+    });
+
+    var doc = this._collection.findOne(selector, options);
+    return doc._id;
+  };
+
+  return $meteorObject;
+});

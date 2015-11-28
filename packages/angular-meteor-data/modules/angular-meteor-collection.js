@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('angular-meteor.collection',
-  ['angular-meteor.entity', 'angular-meteor.utils', 'angular-meteor.cursor', 'diffArray'])
+  ['angular-meteor.utils', 'angular-meteor.cursor', 'angular-meteor.object'])
 
 // The reason angular meteor collection is a factory function and not something
 // that inherit from array comes from here:
@@ -10,120 +10,55 @@ angular.module('angular-meteor.collection',
 .factory('$meteorCollection', [
   '$meteorEntity', '$meteorUtils', '$meteorCursor', 'diffArray',
   function($meteorEntity, $meteorUtils, $meteorCursor, diffArray) {
-    _.extend($meteorCollection, $meteorEntity);
+    var modMethods = ['insert', 'update', 'remove'];
 
-    function $meteorCollection(arg1) {
-      var reactiveFn, collection, cursor, collectionName;
+    modMethods.forEach(function(method) {
+      $meteorCollection.prototype[method] = function(selectors) {
+        var self = this;
+        var restArgs = [].slice.call(arguments, 2);
+        selectors = [].concat(selectors);
 
-      if (_.isFunction(arg1)) {
-        reactiveFn = arg1;
-        cursor = reactiveFn();
-        collectionName = cursor.collection.name;
-        collection = $meteorUtils.getCollectionByName(collectionName);
-      } else {
-        collection = arg1;
-        reactiveFn = collection.find.bind(collection);
-      }
+        var promises = selectors.map(function(selector) {
+          var deferred = $q.defer();
+          var callback = $meteorUtils.callbackPromise(deferred, false);
+          var args = [].concat(selector, restArgs, callback);
+          self._collection.apply(self._collection, args);
+          return deferred.promise;
+        });
 
-      var data = [];
-      _.extend(data, $meteorCollection);
+        return $meteorUtils.promiseAll(promises);
+      };
+    });
 
-      data._collection = collection;
-      data._track(reactiveFn);
+    function $meteorCollection(collection) {
+      if (!(this instanceof $meteorCollection)) 
+        return new $meteorCollection(collection);
 
-      return data;
+      if (_.isString(collection))
+        collection = $meteorUtils.getCollectionByName(collection);
+
+      if (!(collection instanceof Mongo.Collection))
+        throw Error('first argument must be a name of a collection or an instance of Mongo.Collection');
+
+      this._collection = collection;
     }
 
-    $meteorCollection.find = function(selector, options) {
+    $meteorCollection.prototype.find = function(selector, options) {
+      options = options || {};
+
+      if (options.raw)
+        return this._collection.find(selector, options);
+
       return $meteorCursor(this._collection, selector, options);
     };
 
-    $meteorCollection.findOne = function(selector, options) {
-      options = _.extend({}, options, {
-        limit: 1
-      });
+    $meteorCollection.prototype.findOne = function(selector, options) {
+      options = options || {};
 
-      return this.find(selector, options).fetch()[0];
-    };
+      if (options.raw)
+        return this._collection.findOne(selector, options);
 
-    $meteorCollection.getIndexById = function(doc) {
-      var foundDoc = _.find(this, function(colDoc) {
-        // EJSON.equals used to compare Mongo.ObjectIDs and Strings.
-        return EJSON.equals(colDoc._id, doc._id);
-      });
-
-      return _.indexOf(this, foundDoc);
-    };
-
-    $meteorCollection.save = function() {
-      var self = this;
-      var promises = [];
-      var changes = diffArray.getChanges();
-
-      var addedDocs = _.pluck(changes.added, 'item');
-      promises.push(self.insert(addedDocs));
-
-      var removedDocs = _.pluck(changes.removed, 'item');
-      promises.push(self.remove(removedDocs));
-
-      // Updates changed documents
-      changes.changed.forEach(function(descriptor) {
-        promises.push(self._updateDiff(descriptor.selector, descriptor.modifier));
-      });
-
-      return $meteorUtils.promiseAll(promises);
-    };
-
-    $meteorCollection.stop = function() {
-      this._stop('tracker');
-      this._stop('observer');
-    };
-
-    $meteorCollection._track = function(reactiveFn) {
-      var self = this;
-
-      self._tracker = Tracker.autorun(function() {
-        // When the reactive func gets recomputated we need to stop any previous observeChanges
-        Tracker.onInvalidate(function() {
-          self._stop('observer');
-          self.splice(0);
-        });
-
-        var cursor = reactiveFn();
-        self._observe(cursor);
-      });
-    };
-
-    $meteorCollection._observe = function(cursor) {
-      var self = this;
-      this._stop('observer');
-
-      self._observer = cursor.observe({
-        addedAt: function(doc, atIndex) {
-          self.splice(atIndex, 0, doc);
-        },
-
-        changedAt: function(doc, oldDoc, atIndex) {
-          diffArray.deepCopyChanges(self[atIndex], doc);
-          diffArray.deepCopyRemovals(self[atIndex], doc);
-        },
-
-        movedTo: function(doc, fromIndex, toIndex) {
-          self.splice(fromIndex, 1);
-          self.splice(toIndex, 0, doc);
-        },
-
-        removedAt: function(oldDoc) {
-          var removedIndex = self.getIndexById(oldDoc);
-          if (removedIndex != -1) self.splice(removedIndex, 1);
-        }
-      });
-    };
-
-    $meteorCollection._stop = function(threadName) {
-      threadName = '_' + threadName;
-      var thread = this[threadName];
-      if (thread) thread.stop();
+      return $meteorObject(this._collection, selector, options);
     };
 
     return $meteorCollection;
