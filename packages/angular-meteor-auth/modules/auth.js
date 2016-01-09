@@ -1,31 +1,39 @@
 angular.module('angular-meteor.auth')
 
 
-.service('$auth', [
-  '$rootScope',
-  '$q', 
-
-function ($rootScope, $q) {
+.service('$auth', function() {
   if (!Package['accounts-base'])
     throw Error(
       'Oops, looks like Accounts-base package is missing!' +
       'Please add it by running: meteor add accounts-base'
     );
 
-  this.waitForUser = () => {
+  Tracker.autorun(() => {
+    this.currentUser = Meteor.user();
+    this.currentUserId = Meteor.userId();
+    this.loggingIn = Meteor.loggingIn();
+  });
+})
+
+
+.service('$$AuthScope', [
+  '$q',
+
+function($q) {
+  this.waitForUser = function() {
     let deferred = $q.defer();
 
-    $rootScope.autorun(() => {
+    this.autorun(() => {
       if (!Meteor.loggingIn()) deferred.resolve(Meteor.user());
     });
 
     return deferred.promise;
   };
 
-  this.requireUser = () => {
+  this.requireUser = function() {
     let deferred = $q.defer();
 
-    $rootScope.autorun(() => {
+    this.autorun(() => {
       if (Meteor.loggingIn()) return;
       let currentUser = Meteor.user();
 
@@ -38,7 +46,7 @@ function ($rootScope, $q) {
     return deferred.promise;
   };
 
-  this.requireValidUser = (validate = angular.noop) => {
+  this.requireValidUser = function(validate = angular.noop) {
     if (!_.isFunction(validate))
       throw Error('argument 1 must be a function');
 
@@ -53,27 +61,33 @@ function ($rootScope, $q) {
       return $q.reject(isValid);
     });
   };
-
-  this.getUserInfo = () => {
-    return {
-      currentUser: Meteor.user(),
-      currentUserId: Meteor.userId(),
-      loggingIn: Meteor.loggingIn()
-    };
-  };
 }])
 
 
 .run([
   '$rootScope',
-  '$auth',
   '$reactive',
+  '$$ReactiveContext',
+  '$$AuthScope',
 
-function($rootScope, $auth, Reactive) {
-  $rootScope.autorun(() => {
-    let scopeProto = Object.getPrototypeOf($rootScope);
-    let userInfo = $auth.getUserInfo();
-    _.extend(scopeProto, { $auth: userInfo });
-    _.extend(Reactive, { auth: userInfo });
+function($rootScope, Reactive, ReactiveContext, AuthScope) {
+  let scopeProto = Object.getPrototypeOf($rootScope);
+  _.extend(scopeProto, AuthScope);
+
+  let authAPI = [
+    'waitForUser',
+    'requireUser',
+    'requireValidUser'
+  ];
+
+  authAPI.forEach((method) => {
+    ReactiveContext.prototype[method] = function(...args) {
+      return this._scope[method](...args);
+    };
+
+    Reactive[method] = function(...args) {
+      this.attach();
+      return this._reactiveContext[method](...args);
+    };
   });
 }]);

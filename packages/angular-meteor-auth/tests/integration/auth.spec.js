@@ -26,76 +26,72 @@ describe('angular-meteor', function () {
       });
     });
 
-    it('Should put $auth on the rootScope for easy use', function () {
-      expect($rootScope.$auth).toBeDefined();
-      expect($rootScope.$auth.currentUser).toBeDefined();
-      expect($rootScope.$auth.currentUserId).toBeDefined();
-      expect($rootScope.$auth.loggingIn).toBeDefined();
+    it('Should put auth methods on rootScope', function () {
+      expect($rootScope.waitForUser).toBeDefined();
+      expect($rootScope.requireUser).toBeDefined();
+      expect($rootScope.requireValidUser).toBeDefined();
     });
 
-    it('Should $auth be available on every scope created', function () {
+    it('Should put auth methods on every scope created', function () {
       var newScope = $rootScope.$new();
-      expect(newScope.$auth).toBeDefined();
-      expect(newScope.$auth.currentUser).toBeDefined();
-      expect(newScope.$auth.currentUserId).toBeDefined();
-      expect(newScope.$auth.loggingIn).toBeDefined();
+      expect(newScope.waitForUser).toBeDefined();
+      expect(newScope.requireUser).toBeDefined();
+      expect(newScope.requireValidUser).toBeDefined();
     });
 
-    it('Should $auth be available on every isolated scope created', function () {
+    it('Should put auth methods on every isolated scope created', function () {
       var newScope = $rootScope.$new(true);
-      expect(newScope.$auth).toBeDefined();
-      expect(newScope.$auth.currentUser).toBeDefined();
-      expect(newScope.$auth.currentUserId).toBeDefined();
-      expect(newScope.$auth.loggingIn).toBeDefined();
+      expect(newScope.waitForUser).toBeDefined();
+      expect(newScope.requireUser).toBeDefined();
+      expect(newScope.requireValidUser).toBeDefined();
     });
 
-    it('Should put auth on every reactive context created', function() {
+    it('Should put auth methods on every reactive context created', function() {
       var context = $reactive({});
-      expect(context.auth).toBeDefined();
-      expect(context.auth.currentUser).toBeDefined();
-      expect(context.auth.currentUserId).toBeDefined();
-      expect(context.auth.loggingIn).toBeDefined();
+      expect(context.waitForUser).toBeDefined();
+      expect(context.requireUser).toBeDefined();
+      expect(context.requireValidUser).toBeDefined();
     });
 
     it('Should currentUser return empty value when there is no user logged in', function () {
-      expect($rootScope.$auth.currentUser).toBe(null);
+      expect($auth.currentUser).toBe(null);
     });
 
     it('Should loggingIn change when logging in', function (done) {
-      expect($rootScope.$auth.loggingIn).toBe(false);
+      expect($auth.loggingIn).toBe(false);
       Meteor.insecureUserLogin('tempUser', function () {
-        expect($rootScope.$auth.loggingIn).toBe(true);
+        expect($auth.loggingIn).toBe(true);
         done();
       });
     });
 
     it('Should loggingIn change when logging out', function (done) {
-      expect($rootScope.$auth.loggingIn).toBe(false);
+      expect($auth.loggingIn).toBe(false);
       Meteor.insecureUserLogin('tempUser', function () {
-        expect($rootScope.$auth.loggingIn).toBe(true);
+        expect($auth.loggingIn).toBe(true);
 
         Meteor.logout(function () {
-          expect($rootScope.$auth.loggingIn).toBe(false);
+          expect($auth.loggingIn).toBe(false);
           done();
         });
       });
     });
 
     it('Should waitForUser return a promise and resolve it when user logs in', function (done) {
-      var promise = $auth.waitForUser();
+      var promise = $rootScope.waitForUser();
 
       promise.then(function () {
         done();
       });
 
       Meteor.insecureUserLogin('tempUser', function () {
-        expect($rootScope.loggingIn).toBe(true);
+        expect($auth.loggingIn).toBe(true);
         $rootScope.$apply();
       });
     });
 
     it('Should requireUser return a promise and reject it immediately when user is not logged in', function (done) {
-      var promise = $auth.requireUser();
+      var promise = $rootScope.requireUser();
 
       promise.then(angular.noop, function () {
         done();
@@ -108,7 +104,7 @@ describe('angular-meteor', function () {
       Meteor.insecureUserLogin('tempUser', function () {
         $rootScope.$apply();
 
-        var promise = $auth.requireUser();
+        var promise = $rootScope.requireUser();
 
         promise.then(function () {
           done();
@@ -123,7 +119,7 @@ describe('angular-meteor', function () {
         $rootScope.$apply();
 
         var spy = jasmine.createSpy().and.returnValue(true);
-        var promise = $auth.requireValidUser(spy);
+        var promise = $rootScope.requireValidUser(spy);
 
         promise.then(function () {
           expect(spy).toHaveBeenCalled();
@@ -139,7 +135,7 @@ describe('angular-meteor', function () {
         $rootScope.$apply();
 
         var spy = jasmine.createSpy().and.returnValue(false);
-        var promise = $auth.requireValidUser(spy);
+        var promise = $rootScope.requireValidUser(spy);
 
         promise.then(angular.noop, function () {
           done();
